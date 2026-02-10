@@ -1,0 +1,19 @@
+agent:
+  name: redis-tier0-agent
+  mode: observe_only
+
+environments:
+  dev:
+    hosts: [192.168.17.145]
+  #qa:
+    #hosts: [qa-redis-01]
+  #uat:
+  # hosts: [uat-redis-01, uat-redis-02, uat-redis-03]
+  #staging:
+  # hosts: [stage-redis-01]
+  #prod:
+  #  hosts: [prod-redis-01, prod-redis-02, prod-redis-03]
+
+reporting:
+  output: reports/latest.md
+  min_severity_to_report: medium

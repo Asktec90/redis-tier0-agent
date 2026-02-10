@@ -1,0 +1,13 @@
+# Runtime data
+state/
+logs/
+reports/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+.env
+
