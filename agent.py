@@ -13,6 +13,18 @@ BASE_DIR = Path(__file__).parent
 STATE_FILE = BASE_DIR / "state" / "snapshots.json"
 LOG_FILE = BASE_DIR / "logs" / "agent.log"
 
+# Ensure directory exists
+for path in [STATE_FILE.parent, LOG_FILE.parent]:
+    path.mkdir(parents=True, exist_ok=True)
+
+#------------logging-----------------
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 #------------Utilities------------------
 def load_config():
     with open(BASE_DIR / "config.yaml") as f:
@@ -29,7 +41,7 @@ def save_state(state):
 def write_report(path, text):
     path.write_text(text)
 
-def collect_redis_info(host, port=6379, timeout=2):
+def collect_redis_info(host, port, timeout):
     try:
         r = redis.Redis(
             host=host,
@@ -58,6 +70,39 @@ def collect_redis_info(host, port=6379, timeout=2):
             "error": str(e)
         }
 
+def generate_report(snapshot):
+    lines = []
+
+    meta = snapshot["metadata"]
+    lines.append("# Redis Tier-0 Agent Report\n")
+    lines.append(f"Run time: {meta['timestamp']}\n")
+
+    for env, env_data in snapshot["environments"].items():
+        lines.append(f"## Environment: {env}\n")
+        
+        for host, host_data in env_data["hosts"].items():
+            lines.append(f"### Host: {host}\n")
+
+            redis = host_data["redis"]
+            lines.append(f"Redis mode: {redis['mode']}\n")
+            lines.append("| Port | Status | Role | Version | Memory | Clients |")
+            lines.append("|------|--------|------|---------|--------|---------|")
+
+            for port, inst in redis["instances"].items():
+                if inst["status"] == "ok":
+                    lines.append(
+                            f"| {port} | OK | {inst.get('role')} | "
+                            f"{inst.get('redis_version')} | "
+                            f"{inst.get('used_memory_human')} | "
+                            f"{inst.get('connected_clients')} |"
+                    )
+                else:
+                    lines.append(f"| {port} | ERROR | - | - | - | - |")
+
+            lines.append("")
+
+    return "\n".join(lines)
+
 #-----------------agent loop---------------------
 
 def run_agent():
@@ -66,67 +111,67 @@ def run_agent():
         state = load_state()
         REPORT_FILE = BASE_DIR / config["reporting"]["output"]
 
-    # Ensure directory exists
-        for path in [STATE_FILE.parent, LOG_FILE.parent, REPORT_FILE.parent]:
-            path.mkdir(parents=True, exist_ok=True)
+    # Ensure report directory exists
+        REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    #------------logging-----------------
-
-        logging.basicConfig(
-            filename=LOG_FILE,
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s"
-        )
-
-    
         logging.info("Agent is Running")
 
         timestamp = datetime.now(timezone.utc).isoformat()
         snapshot = {
-            "timestamp": timestamp,
+            "metadata":{
+                "agent": "Redis-tier0-agent",
+                "version": "0.1",
+                "timestamp": timestamp
+            },
             "environments": {}
-        }   
+        }
 
-# placeholder data collection happens here 
+# placeholder data collection happens here
 
-        for env, details in config["environments"].items():
-            snapshot["environments"][env] = {
+        for env_name, env_cfg in config["environments"].items():
+            snapshot["environments"][env_name] = {
+                "type": env_cfg.get("type"),
                 "hosts": {}
             }
 
-            for host in details["hosts"]:
-                logging.info(f"Collecting Redis INFO from {host}")
+            for host_cfg in env_cfg["hosts"]:
+                host_ip = host_cfg["ip"]
+                redis_cfg = host_cfg["redis"]
+                redis_mode = redis_cfg["mode"]
+                ports = redis_cfg["ports"]
 
-                info = collect_redis_info(host)
+                snapshot["environments"][env_name]["hosts"][host_ip] = {
+                        "system": {
+                            "cpu": None,
+                            "memory": None,
+                            "io": None
+                        },
+                        "redis": {
+                            "mode": redis_mode,
+                            "instances": {}
+                        }
+                }
 
-                snapshot["environments"][env]["hosts"][host] = info
+                for port in ports:
+                    info = collect_redis_info(
+                            host=host_ip,
+                            port=port,
+                            timeout=config["connection"]["timeout_seconds"]
+                    )
+
+                    snapshot["environments"][env_name]["hosts"][host_ip]["redis"]["instances"][str(port)] = info
+
 
 # Store snapshot (history)
 
         state[timestamp] = snapshot
         save_state(state)
 
-# Tier-0 placeholder report
+# Tier-0 report generation
 
-        report = f"""# Redis Tier-0 Agent Report
-
-Run time: {timestamp}
-
-## Environments observed 
-"""
-        for env, env_data in snapshot["environments"].items():
-            report += f"## Environment {env}\n\n"
-
-            for host, host_data in env_data["hosts"].items():
-                report += f"## Host: {host}\n"
-
-                for key, value in host_data.items():
-                    report += f"- {key}: {value}\n"
-
-        report += "\n"
-
-
+        report = generate_report(snapshot)
         write_report(REPORT_FILE, report)
+        
         logging.info("Agent run completed successfully")
 
     except Exception as e:
