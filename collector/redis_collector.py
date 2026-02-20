@@ -52,9 +52,18 @@ def collect_redis_info(host, port, timeout):
         }
 
         if result["cluster"]["enabled"]:
-            cluster_nodes = r.execute_command("CLUSTER NODES")
+            cluster_nodes = r.execute_command("CLUSTER", "NODES")
             result["cluster"]["nodes"] = parse_cluster_nodes(cluster_nodes)
+            topology = result["cluster"]["nodes"]
 
+            self_node_id = None
+
+            for node in topology["masters"] + topology["replicas"]:
+                if "myself" in node.get("flags", []):
+                    self_node_id = node["node_id"]
+                    break
+
+            result["cluster"]["self_node_id"] = self_node_id
 
         return result
 

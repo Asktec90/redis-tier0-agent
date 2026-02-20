@@ -9,11 +9,10 @@ environments:
   dev:
     type: non-prod
     hosts: 
-      - ip: 192.168.17.145
+      - ip: 192.168.16.113
         redis:
-          mode: standalone
-          ports:
-            - 6379
+          mode: cluster
+          ports: [7001, 7002, 7003, 7004, 7005, 7006]
 
   #qa:
     #hosts: [qa-redis-01]

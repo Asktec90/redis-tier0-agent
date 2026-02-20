@@ -7,6 +7,7 @@ from pathlib import Path
 from config import load_config, load_state, save_state, write_report
 from collector.redis_collector import collect_redis_info
 from reporting.report_generator import generate_report
+from analysis.memory import get_connected_master_memory, calculate_average_memory
 
 #------------Base Paths----------------
 
@@ -86,6 +87,12 @@ def run_agent():
 
         state[timestamp] = snapshot
         save_state(state)
+#Temporarily pasting the masters memory
+        masters_memory = get_connected_master_memory(snapshot)
+        avg_memory = calculate_average_memory(masters_memory)
+        print("Masters:", masters_memory)
+        print("Average:", avg_memory)
+
 
 # Tier-0 report generation
 

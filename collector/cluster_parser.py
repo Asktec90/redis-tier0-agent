@@ -49,6 +49,7 @@ def parse_cluster_nodes(cluster_nodes):
                 "ip": ip,
                 "port": port,
                 "state": state,
+                "flags" : flag_list,
                 "slots": slots
             }
 
@@ -60,6 +61,7 @@ def parse_cluster_nodes(cluster_nodes):
                 "node_id": node_id,
                 "ip": ip,
                 "port": port,
+                "flags": flag_list,
                 "state": state
             }
 

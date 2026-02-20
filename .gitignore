@@ -1,13 +1,28 @@
-# Runtime data
-state/
-logs/
-reports/
-
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 
-# Virtual env
+# Virtual environments
+.venv/
 venv/
-.env
 
+# Env files
+.env
+.env.*
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# OS junk
+.DS_Store
+
+#Runtime directories 
+logs/
+reports/
+state/
+
+# VS code
+.vscode/
